@@ -1,6 +1,14 @@
 -- Contains library functions that do not have a logical place.
+---@class QuestieLib
+local QuestieLib = QuestieLoader:CreateModule("QuestieLib");
+-------------------------
+--Import modules.
+-------------------------
+---@type QuestieDB
+local QuestieDB = QuestieLoader:ImportModule("QuestieDB");
+---@type QuestiePlayer
+local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer");
 
-QuestieLib = {};
 local _QuestieLib = {};
 
 --Is set in QuestieLib.lua
@@ -38,31 +46,6 @@ function QuestieLib:PrintDifficultyColor(level, text)
         return "|cFF40C040"..text.."|r"; -- Green
     else
         return "|cFFC0C0C0"..text.."|r"; -- Grey
-    end
-end
-
-function QuestieLib:IsTrivial(level)
-
-    if level == -1 then
-        level = QuestiePlayer:GetPlayerLevel();
-    end
-    local levelDiff = level - QuestiePlayer:GetPlayerLevel();
-
-    if (levelDiff >= 5) then
-        --return "|cFFFF1A1A"..text.."|r"; -- Red
-        return false
-    elseif (levelDiff >= 3) then
-        --return "|cFFFF8040"..text.."|r"; -- Orange
-        return false
-    elseif (levelDiff >= -2) then
-        --return "|cFFFFFF00"..text.."|r"; -- Yellow
-        return false
-    elseif (-levelDiff <= GetQuestGreenRange()) then
-        --return "|cFF40C040"..text.."|r"; -- Green
-        return false
-    else
-        --return "|cFFC0C0C0"..text.."|r"; -- Grey
-        return true
     end
 end
 
@@ -239,15 +222,6 @@ function QuestieLib:ProfileFunction(functionReference, includeSubroutine)
     return time, count;
 end
 
-function QuestieLib:ProfileFunctions()
-  for key, value in pairs(QuestieQuest) do
-    if(type(value) == "function") then
-      local time, count = QuestieLib:ProfileFunction(value, false);
-      Questie:Print("[QuestieLib] ", key, "Profiling Avg:", round(time/count, 6));
-    end
-  end
-end
-
 --To try and create a fix for errors regarding items that do not exist in our DB,
 --this function tries to prefetch all the items on startup and accept.
 function QuestieLib:CacheAllItemNames()
@@ -268,18 +242,20 @@ end
 
 function QuestieLib:CacheItemNames(questId)
     local quest = QuestieDB:GetQuest(questId);
-    for objectiveIndexDB, objectiveDB in pairs(quest.ObjectiveData) do
-        if objectiveDB.Type == "item" then
-            if not CHANGEME_Questie4_ItemDB[objectiveDB.Id] then
-                Questie:Debug(DEBUG_DEVELOP, "Requesting item information for missing itemId:", objectiveDB.Id)
-                local item = Item:CreateFromItemID(objectiveDB.Id)
-                item:ContinueOnItemLoad(function()
-                    local itemName = item:GetItemName();
-                    --local itemName = GetItemInfo(objectiveDB.Id)
-                    --Create an empty item with the name itself but no drops.
-                    CHANGEME_Questie4_ItemDB[objectiveDB.Id] = {itemName,{questId},{},{}};
-                    Questie:Debug(DEBUG_DEVELOP, "Created item information for item:", itemName, ":", objectiveDB.Id);
-                end)
+    if(quest and quest.ObjectiveData) then
+        for objectiveIndexDB, objectiveDB in pairs(quest.ObjectiveData) do
+            if objectiveDB.Type == "item" then
+                if not CHANGEME_Questie4_ItemDB[objectiveDB.Id] then
+                    Questie:Debug(DEBUG_DEVELOP, "Requesting item information for missing itemId:", objectiveDB.Id)
+                    local item = Item:CreateFromItemID(objectiveDB.Id)
+                    item:ContinueOnItemLoad(function()
+                        local itemName = item:GetItemName();
+                        --local itemName = GetItemInfo(objectiveDB.Id)
+                        --Create an empty item with the name itself but no drops.
+                        CHANGEME_Questie4_ItemDB[objectiveDB.Id] = {itemName,{questId},{},{}};
+                        Questie:Debug(DEBUG_DEVELOP, "Created item information for item:", itemName, ":", objectiveDB.Id);
+                    end)
+                end
             end
         end
     end
@@ -317,12 +293,12 @@ end
 --Search for just Addon\\ at the front since the interface part often gets trimmed
 --Code Credit Author(s): Cryect (cryect@gmail.com), Xinhuan and their LibGraph-2.0 
 do
-	local path = string.match(debugstack(1, 1, 0), "AddOns\\(.+)Modules\\Libs\\QuestieLib.lua")
-	if path then
-		QuestieLib.AddonPath = "Interface\\AddOns\\"..path
+    local path = string.match(debugstack(1, 1, 0), "AddOns\\(.+)Modules\\Libs\\QuestieLib.lua")
+    if path then
+        QuestieLib.AddonPath = "Interface\\AddOns\\"..path
   else
     local major, minor, patch, commit = QuestieLib:GetAddonVersionInfo();
-		error("v"..major.."."..minor.."."..patch.."_"..commit.." cannot determine the folder it is located in because the path is too long and got truncated in the debugstack(1, 1, 0) function call")
+        error("v"..major.."."..minor.."."..patch.."_"..commit.." cannot determine the folder it is located in because the path is too long and got truncated in the debugstack(1, 1, 0) function call")
   end
 end
 
@@ -388,6 +364,40 @@ function QuestieLib:SanitizePattern(pattern)
 
   return sanitize_cache[pattern]
 end
+
+function QuestieLib:SortQuestsByLevel(quests)
+    local sortedQuestsByLevel = {}
+
+    local function compareTablesByIndex(a, b)
+        return a[1] < b[1]
+    end
+
+    for _, q in pairs(quests) do
+        table.insert(sortedQuestsByLevel, {q.questLevel, q})
+    end
+    table.sort(sortedQuestsByLevel, compareTablesByIndex)
+
+    return sortedQuestsByLevel
+end
+
+--[[function QuestieLib:IsTrivial(level)
+    if level == -1 then
+        level = QuestiePlayer:GetPlayerLevel();
+    end
+    local levelDiff = level - QuestiePlayer:GetPlayerLevel();
+    if (levelDiff >= 5) then
+        return false -- Red
+    elseif (levelDiff >= 3) then
+        return false -- Orange
+    elseif (levelDiff >= -2) then
+        return false -- Yellow
+    elseif (-levelDiff <= GetQuestGreenRange()) then
+        return false -- Green
+    else
+        return true -- Grey
+    end
+end]]--
+
 -- https://github.com/shagu/pfQuest/commit/01177f2eb2926336a1ad741a6082affe78ae7c20
 --[[
     function QuestieLib:SanitizePattern(pattern, excludeNumberCapture)
