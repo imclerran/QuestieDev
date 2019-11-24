@@ -8,9 +8,9 @@ local HBDMigrate = LibStub("HereBeDragonsQuestie-Migrate")
 
 
 --Use these to convert your MapIds!
-zoneDataAreaIDToMapID = {} --Databaseareaids (Vanilla) to MapID(This is not UiMapID!)
-zoneDataAreaIDToUiMapID = {}
+local zoneDataAreaIDToMapID = {} --Databaseareaids (Vanilla) to MapID(This is not UiMapID!)
 local uiMapIDToAreaID = {} --You should really never need the MapIDs, but you can convert back using all 3 variables.
+ZoneDataAreaIDToUiMapID = {}
 
 function QuestieDBZone:GetAreaIdByUIMapID(uiMapId)
     local areaId = 0
@@ -111,7 +111,7 @@ local zoneDataClassicBetaHack = {
 }
 
 
-zoneDataClassic = { --AreaTable IDs --Aka AreaID
+local zoneDataClassic = { --AreaTable IDs --Aka AreaID
     [1] = 'Dun Morogh',
     [3] = 'Badlands',
     [4] = 'Blasted Lands',
@@ -194,6 +194,38 @@ zoneDataClassic = { --AreaTable IDs --Aka AreaID
     [3456] = 'Naxxramas',
     [7307] = 'Upper Blacrock Spire',
 }
+
+-- [AreaID] = {"name", alternative AreaId (a sub zone)}
+local dungeons = {
+    [209] = {"Shadowfang Keep", 236},
+    [491] = {"Razorfen Kraul", 1717},
+    [717] = {"The Stockades", nil},
+    [718] = {"Wailing Caverns", nil},
+    [719] = {"Blackfathom Deeps", 2797},
+    [721] = {"Gnomeregan", 133},
+    [722] = {"Razorfen Downs", 1316},
+    [796] = {"Scarlet Monastery", nil},
+    [1176] = {"Zul'Farrak", 978},
+    [1337] = {"Uldaman", 1517},
+    [1477] = {"The Temple of Atal'Hakkar", 1417},
+    [1581] = {"The Deadmines", nil},
+    [1583] = {"Blackrock Spire", nil},
+    [1584] = {"Blackrock Depths", nil},
+    [2017] = {"Stratholme", 2279},
+    [2057] = {"Scholomance", nil},
+    [2100] = {"Maraudon", nil},
+    [2437] = {"Ragefire Chasm", nil},
+    [2557] = {"Dire Maul", 2577},
+}
+
+function QuestieDBZone:GetDungeonAlternative(areaId)
+    local entry = dungeons[areaId]
+    if entry then
+        return entry[2]
+    end
+
+    return nil
+end
 
 
 --Exported IDs from Classic DEMO
@@ -401,7 +433,7 @@ local zoneLevelList = {{1, 1, 10},
                  {1657, 1, 60}}
 
 --Locations for instances in the world.
-instanceData = {
+InstanceLocations = {
     [209] = {{130, 45, 68.7}},
     [491] = {{17, 42.3, 89.9}},
     [717] = {{1519, 40.5, 55.9}},
@@ -462,7 +494,7 @@ function QuestieDBZone:ZoneCreateConversion()
             Questie:Debug(DEBUG_CRITICAL, "Map convertion failed! : ", "DataName("..tostring(Data[1])..")","UiMapID("..tostring(UiMapID)..")", "AreaID("..tostring(Data[3])..")", "MapID("..tostring(Data[4])..")")
         elseif(UiMapID ~= nil) then
             zoneDataAreaIDToMapID[Data[3]] = Data[4]
-            zoneDataAreaIDToUiMapID[Data[3]] = UiMapID
+            ZoneDataAreaIDToUiMapID[Data[3]] = UiMapID
             uiMapIDToAreaID[UiMapID] = Data[3]
             --Questie:Debug(DEBUG_SPAM, "[QuestieDBZone]", Data[1], Data[3], Data[4], UiMapID)
         end

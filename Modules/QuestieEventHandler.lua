@@ -23,6 +23,8 @@ local QuestieNameplate = QuestieLoader:ImportModule("QuestieNameplate");
 local QuestieMap = QuestieLoader:ImportModule("QuestieMap");
 ---@type QuestieLib
 local QuestieLib = QuestieLoader:ImportModule("QuestieLib");
+---@type QuestieHash
+local QuestieHash = QuestieLoader:ImportModule("QuestieHash");
 ---@type QuestiePlayer
 local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer");
 ---@type QuestieDB
@@ -38,7 +40,7 @@ local runQLU = false
 
 
 local function _Hack_prime_log() -- this seems to make it update the data much quicker
-  for i=1,GetNumQuestLogEntries()+1 do
+  for i=1, GetNumQuestLogEntries()+1 do
     GetQuestLogTitle(i)
     QuestieQuest:GetRawLeaderBoardDetails(i)
   end
@@ -129,7 +131,7 @@ function QuestieEventHandler:CompleteQuest(questId, count)
         return
     end
     if(IsQuestFlaggedCompleted(questId) or quest.Repeatable or count > 50) then
-        QuestieQuest:CompleteQuest(questId)
+        QuestieQuest:CompleteQuest(quest)
         QuestieJourney:CompleteQuest(questId)
     else
         Questie:Debug(DEBUG_INFO, "[QuestieEventHandler]", questId, ":Quest not complete starting timer! IsQuestFlaggedCompleted", IsQuestFlaggedCompleted(questId), "Repeatable:", quest.Repeatable, "Count:", count);
@@ -145,6 +147,13 @@ function QuestieEventHandler:QUEST_TURNED_IN(questID, xpReward, moneyReward)
     Questie:Debug(DEBUG_DEVELOP, "EVENT: QUEST_TURNED_IN", questID, xpReward, moneyReward)
     _Hack_prime_log()
     finishedEventReceived = questID
+
+    -- Some repeatable sub quests don't fire a UQLC event when they're completed.
+    -- Therefore we have to check here to make sure the next QLU updates the state.
+    local quest = QuestieDB:GetQuest(questID)
+    if quest and quest.parentQuest and quest.Repeatable then
+        runQLU = true
+    end
 end
 
 -- Fires when the quest log changes. That includes visual changes and
@@ -169,7 +178,7 @@ function QuestieEventHandler:QUEST_LOG_UPDATE()
 
     -- QR or UQLC events have set the flag, so we need to update Questie state.
     if runQLU then
-        QuestieQuest:CompareQuestHashes()
+        QuestieHash:CompareQuestHashes()
         runQLU = false
     end
 end
@@ -214,7 +223,12 @@ end
 -- Fired when some chat messages about skills are displayed
 function QuestieEventHandler:CHAT_MSG_SKILL()
     Questie:Debug(DEBUG_DEVELOP, "CHAT_MSG_SKILL")
-    QuestieProfessions:Update()
+    local isProfUpdate = QuestieProfessions:Update()
+    -- This needs to be done to draw new quests that just came available
+    if isProfUpdate then
+        QuestieQuest:CalculateAvailableQuests()
+        QuestieQuest:DrawAllAvailableQuests()
+    end
 end
 
 -- Fired when some chat messages about reputations are displayed

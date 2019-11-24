@@ -9,18 +9,13 @@ local QuestieDB = QuestieLoader:ImportModule("QuestieDB");
 ---@type QuestiePlayer
 local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer");
 
-local _QuestieLib = {};
-
 --Is set in QuestieLib.lua
 QuestieLib.AddonPath = "Interface\\Addons\\QuestieDev-master\\";
 
--- Math functions are often run A LOT so lets keep these local
-local function round(number, decimals)
-    return (("%%.%df"):format(decimals)):format(number)
-end
 local math_abs = math.abs;
 local math_sqrt = math.sqrt;
 local math_max = math.max;
+local tinsert = table.insert
 
 --[[
     Red: 5+ level above player
@@ -74,6 +69,41 @@ function QuestieLib:GetDifficultyColorPercent(level)
     end
 end
 
+-- 1.12 color logic
+local function RGBToHex(r, g, b)
+    if r > 255 then r = 255; end
+    if g > 255 then g = 255; end
+    if b > 255 then b = 255; end
+    return string.format("|cFF%02x%02x%02x", r, g, b);
+end
+
+local function FloatRGBToHex(r, g, b)
+    return RGBToHex(r*254, g*254, b*254);
+end
+
+function QuestieLib:GetRGBForObjective(objective)
+    if objective.fulfilled ~= nil and objective.Collected == nil then
+        objective.Collected = objective.fulfilled
+        objective.Needed = objective.required
+    end
+
+    if not objective.Collected or type(objective.Collected) ~= "number" then return FloatRGBToHex(0.8, 0.8, 0.8); end
+    local float = objective.Collected / objective.Needed
+    local trackerColor = Questie.db.global.trackerColorObjectives
+
+    if not trackerColor or trackerColor == "white" then
+        return "|cFFEEEEEE";
+    elseif trackerColor == "whiteAndGreen" then
+        return objective.Collected == objective.Needed and RGBToHex(76, 255, 76) or FloatRGBToHex(0.8, 0.8, 0.8)
+    elseif trackerColor == "whiteToGreen" then
+        return FloatRGBToHex(0.8 - float / 2, 0.8 + float / 3, 0.8 - float / 2);
+    else
+        if float < .49 then return FloatRGBToHex(1, 0 + float / .5, 0); end
+        if float == .50 then return FloatRGBToHex(1, 1, 0); end
+        if float > .50 then return FloatRGBToHex(1 - float / 2, 1, 0); end
+    end
+end
+
 function QuestieLib:IsResponseCorrect(questId)
     local count = 0;
     local objectiveList = nil;
@@ -85,8 +115,8 @@ function QuestieLib:IsResponseCorrect(questId)
           good = false;
         else
           for objectiveIndex, objective in pairs(objectiveList) do
-              if(objective.text == nil or objective.text == "" or QuestieDB:Levenshtein(": 0/1", objective.text) < 5) then
-                  Questie:Debug(DEBUG_SPAM, count, " : Objective text is strange!", "'", objective.text, "'", " distance", QuestieDB:Levenshtein(": 0/1", objective.text));
+              if(objective.text == nil or objective.text == "" or QuestieLib:Levenshtein(": 0/1", objective.text) < 5) then
+                  Questie:Debug(DEBUG_SPAM, count, " : Objective text is strange!", "'", objective.text, "'", " distance", QuestieLib:Levenshtein(": 0/1", objective.text));
                   good = false;
                   break;
               end
@@ -110,8 +140,8 @@ function QuestieLib:GetQuestObjectives(questId)
             good = false;
         else
             for objectiveIndex, objective in pairs(objectiveList) do
-                if(objective.text == nil or objective.text == "" or QuestieDB:Levenshtein(": 0/1", objective.text) < 5) then
-                    Questie:Debug(DEBUG_SPAM, count, " : Objective text is strange!", "'", objective.text, "'", " distance", QuestieDB:Levenshtein(": 0/1", objective.text));
+                if(objective.text == nil or objective.text == "" or QuestieLib:Levenshtein(": 0/1", objective.text) < 5) then
+                    Questie:Debug(DEBUG_SPAM, count, " : Objective text is strange!", "'", objective.text, "'", " distance", QuestieLib:Levenshtein(": 0/1", objective.text));
                     good = false;
                     break;
                 end
@@ -140,11 +170,19 @@ function QuestieLib:GetColoredQuestName(id, name, level, showLevel, isComplete, 
             if(not blizzLike) then
                 char = string.sub(questTag, 1, 1);
             end
+
+            local langCode = QuestieLocale:GetUILocale() -- the string.sub above doesn't work for multi byte characters in Chinese
             if questType == 1 then
                 name = "[" .. level .. "+" .. "] " .. name -- Elite quest
             elseif questType == 81 then
+                if langCode == "zhCN" or langCode == "zhTW" or langCode == "koKR" or langCode == "ruRU" then
+                    char = "D"
+                end
                 name = "[" .. level .. char .. "] " .. name -- Dungeon quest
             elseif questType == 62 then
+                if langCode == "zhCN" or langCode == "zhTW" or langCode == "koKR" or langCode == "ruRU" then
+                    char = "R"
+                end
                 name = "[" .. level .. char .. "] " .. name -- Raid quest
             elseif questType == 41 then
                 name = "[" .. level .. "] " .. name -- Which one? This is just default.
@@ -217,9 +255,9 @@ end
 function QuestieLib:ProfileFunction(functionReference, includeSubroutine)
     --Optional var
     if(not includeSubroutine) then includeSubroutine = true; end
-    local time, count = GetFunctionCPUUsage(functionReference, includeSubroutine);
+    local now, count = GetFunctionCPUUsage(functionReference, includeSubroutine);
     --Questie:Print("[QuestieLib]", "Profiling Avg:", round(time/count, 6));
-    return time, count;
+    return now, count;
 end
 
 --To try and create a fix for errors regarding items that do not exist in our DB,
@@ -245,14 +283,14 @@ function QuestieLib:CacheItemNames(questId)
     if(quest and quest.ObjectiveData) then
         for objectiveIndexDB, objectiveDB in pairs(quest.ObjectiveData) do
             if objectiveDB.Type == "item" then
-                if not CHANGEME_Questie4_ItemDB[objectiveDB.Id] then
+                if not QuestieDB.itemData[objectiveDB.Id] then
                     Questie:Debug(DEBUG_DEVELOP, "Requesting item information for missing itemId:", objectiveDB.Id)
                     local item = Item:CreateFromItemID(objectiveDB.Id)
                     item:ContinueOnItemLoad(function()
                         local itemName = item:GetItemName();
                         --local itemName = GetItemInfo(objectiveDB.Id)
                         --Create an empty item with the name itself but no drops.
-                        CHANGEME_Questie4_ItemDB[objectiveDB.Id] = {itemName,{questId},{},{}};
+                        QuestieDB.itemData[objectiveDB.Id] = {itemName,{questId},{},{}};
                         Questie:Debug(DEBUG_DEVELOP, "Created item information for item:", itemName, ":", objectiveDB.Id);
                     end)
                 end
@@ -290,6 +328,11 @@ function QuestieLib:GetAddonVersionInfo()  -- todo: better place
     return tonumber(major), tonumber(minor), tonumber(patch);
 end
 
+function QuestieLib:GetAddonVersionString()
+    local major, minor, patch = QuestieLib:GetAddonVersionInfo()
+    return "v" .. tostring(major) .. "." .. tostring(minor) .. "." .. tostring(patch)
+end
+
 --Search for just Addon\\ at the front since the interface part often gets trimmed
 --Code Credit Author(s): Cryect (cryect@gmail.com), Xinhuan and their LibGraph-2.0 
 do
@@ -300,40 +343,6 @@ do
     local major, minor, patch, commit = QuestieLib:GetAddonVersionInfo();
         error("v"..major.."."..minor.."."..patch.."_"..commit.." cannot determine the folder it is located in because the path is too long and got truncated in the debugstack(1, 1, 0) function call")
   end
-end
-
-
-function QuestieLib:PlayerInGroup(playerName)
-    if(UnitInParty("player") or UnitInRaid("player")) then
-        local player = {}
-        for index=1, 40 do
-            local name = nil
-            local className, classFilename = nil;
-            --This disables raid check for players.
-            --if(UnitInRaid("player")) then
-            --    name = UnitName("raid"..index);
-            --    className, classFilename = UnitClass("raid"..index);
-            --end
-            if(not name) then
-                name = UnitName("party"..index);
-                className, classFilename = UnitClass("party"..index);
-            end
-            if(name == playerName) then
-                player.name = playerName;
-                player.class = classFilename;
-                local rPerc, gPerc, bPerc, argbHex = GetClassColor(classFilename)
-                player.r = rPerc;
-                player.g = gPerc;
-                player.b = bPerc;
-                player.colorHex = argbHex;
-                return player;
-            end
-            if(index > 6 and not UnitInRaid("player")) then
-                break;
-            end
-        end
-    end
-    return nil;
 end
 
 function QuestieLib:Count(table) -- according to stack overflow, # and table.getn arent reliable (I've experienced this? not sure whats up)
@@ -373,53 +382,74 @@ function QuestieLib:SortQuestsByLevel(quests)
     end
 
     for _, q in pairs(quests) do
-        table.insert(sortedQuestsByLevel, {q.questLevel, q})
+        tinsert(sortedQuestsByLevel, {q.questLevel, q})
     end
     table.sort(sortedQuestsByLevel, compareTablesByIndex)
 
     return sortedQuestsByLevel
 end
 
---[[function QuestieLib:IsTrivial(level)
-    if level == -1 then
-        level = QuestiePlayer:GetPlayerLevel();
+---------------------------------------------------------------------------------------------------
+-- Returns the Levenshtein distance between the two given strings
+-- credit to https://gist.github.com/Badgerati/3261142
+function QuestieLib:Levenshtein(str1, str2)
+    local len1 = string.len(str1)
+    local len2 = string.len(str2)
+    local matrix = {}
+    local cost = 0
+    -- quick cut-offs to save time
+    if (len1 == 0) then
+        return len2
+    elseif (len2 == 0) then
+        return len1
+    elseif (str1 == str2) then
+        return 0
     end
-    local levelDiff = level - QuestiePlayer:GetPlayerLevel();
-    if (levelDiff >= 5) then
-        return false -- Red
-    elseif (levelDiff >= 3) then
-        return false -- Orange
-    elseif (levelDiff >= -2) then
-        return false -- Yellow
-    elseif (-levelDiff <= GetQuestGreenRange()) then
-        return false -- Green
-    else
-        return true -- Grey
+    -- initialise the base matrix values
+    for i = 0, len1, 1 do
+        matrix[i] = {}
+        matrix[i][0] = i
     end
-end]]--
-
--- https://github.com/shagu/pfQuest/commit/01177f2eb2926336a1ad741a6082affe78ae7c20
---[[
-    function QuestieLib:SanitizePattern(pattern, excludeNumberCapture)
-  -- escape brackets
-  pattern = gsub(pattern, "%(", "%%(")
-  pattern = gsub(pattern, "%)", "%%)")
-
-  -- remove bad capture indexes
-  pattern = gsub(pattern, "%d%$s","s") -- %1$s to %s
-  pattern = gsub(pattern, "%d%$d","d") -- %1$d to %d
-  pattern = gsub(pattern, "%ds","s") -- %2s to %s
-
-  -- add capture to all findings
-  pattern = gsub(pattern, "%%s", "(.+)")
-
-  --We might only want to capture the name itself and not numbers.
-  if(not excludeNumberCapture) then
-    pattern = gsub(pattern, "%%d", "(%%d+)")
-  else
-    pattern = gsub(pattern, "%%d", "%%d+")
-  end
-
-  return pattern
+    for j = 0, len2, 1 do
+        matrix[0][j] = j
+    end
+    -- actual Levenshtein algorithm
+    for i = 1, len1, 1 do
+        for j = 1, len2, 1 do
+            if (string.byte(str1,i) == string.byte(str2,j)) then
+                cost = 0
+            else
+                cost = 1
+            end
+            matrix[i][j] = math.min(matrix[i-1][j] + 1, matrix[i][j-1] + 1, matrix[i-1][j-1] + cost)
+        end
+    end
+    -- return the last value - this is the Levenshtein distance
+    return matrix[len1][len2]
 end
-]]--
+
+local randomSeed = 0;
+function QuestieLib:MathRandomSeed(seed)
+    randomSeed = seed
+end
+
+function QuestieLib:MathRandom(low_or_high_arg, high_arg)
+    local low = nil
+    local high = nil
+    if low_or_high_arg ~= nil then
+        if high_arg ~= nil then
+            low = low_or_high_arg
+            high = high_arg
+        else
+            low = 1
+            high = low_or_high_arg
+        end
+    end
+
+    randomSeed = (randomSeed * 214013 + 2531011) % 2^32;
+    local rand = (math.floor(randomSeed / 2^16) % 2^15) / 0x7fff;
+    if high == nil then
+        return rand
+    end
+    return low + math.floor(rand * high)
+end

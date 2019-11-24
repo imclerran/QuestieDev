@@ -1,24 +1,29 @@
 ---@class QuestieProfessions
 local QuestieProfessions = QuestieLoader:CreateModule("QuestieProfessions");
+---@type QuestieQuest
+local QuestieQuest = QuestieLoader:ImportModule("QuestieQuest")
 local playerProfessions = {}
 local professionTable = {}
 
 function QuestieProfessions:Update()
     Questie:Debug(DEBUG_DEVELOP, "QuestieProfession: Update")
     ExpandSkillHeader(0) -- Expand all header
+    local isProfUpdate = false
 
     for i=1, GetNumSkillLines() do
         if i > 14 then break; end -- We don't have to go through all the weapon skills
 
         local skillName, isHeader, isExpanded, skillRank, _, _, _, _, _, _, _, _, _ = GetSkillLineInfo(i)
         if isHeader == nil and professionTable[skillName] then
+            isProfUpdate = true -- A profession leveled up, not something like "Defense"
             playerProfessions[professionTable[skillName]] = skillRank
         end
     end
+    return isProfUpdate
 end
 
 -- This function is just for debugging purpose
--- These is no need to access the playerProfessions table somewhere else
+-- There is no need to access the playerProfessions table somewhere else
 function QuestieProfessions:GetPlayerProfessions()
     return playerProfessions
 end
