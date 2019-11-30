@@ -341,19 +341,13 @@ function QuestieQuest:AcceptQuest(questId)
         local quest = QuestieDB:GetQuest(questId)
         if quest then
             -- we also need to remove exclusivegroup icons (TESTED)
-            if quest.ExclusiveQuestGroup then
-                for k, qId in pairs(quest.ExclusiveQuestGroup) do
-                    QuestieMap:UnloadQuestFrames(qId);
-                end
-            end
-
+            QuestieQuest:RemoveExclusiveGroupIcon(quest)
             QuestiePlayer.currentQuestlog[questId] = quest
             QuestieQuest:PopulateQuestLogInfo(quest)
             QuestieQuest:PopulateObjectiveNotes(quest)
         else
             QuestiePlayer.currentQuestlog[questId] = questId
         end
-
         --TODO: Insert call to drawing objective logic here!
         --QuestieQuest:TrackQuest(questId);
         QuestieQuest:CalculateAvailableQuests()
@@ -373,6 +367,14 @@ function QuestieQuest:AcceptQuest(questId)
         Questie:Debug(DEBUG_INFO, "[QuestieQuest]: ".. QuestieLocale:GetUIString('DEBUG_ACCEPT_QUEST', questId), " Warning: Quest already existed, not adding");
     end
 
+end
+
+function QuestieQuest:RemoveExclusiveGroupIcon(quest)
+    if quest.ExclusiveQuestGroup then
+        for k, qId in pairs(quest.ExclusiveQuestGroup) do
+            QuestieMap:UnloadQuestFrames(qId);
+        end
+    end
 end
 
 function QuestieQuest:CompleteQuest(quest)
