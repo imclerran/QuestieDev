@@ -313,17 +313,21 @@ function QuestieQuest:GetRawLeaderBoardDetails(QuestLogIndex)
     quest.Objectives = {}
     local objectiveList  = C_QuestLog.GetQuestObjectives(questId) or {};
     for objectiveIndex, objective in pairs(objectiveList) do
-        quest.Objectives[objectiveIndex] = {}
-        quest.Objectives[objectiveIndex].description = objective.text;
-        quest.Objectives[objectiveIndex].objectiveType = objective.type;
-        quest.Objectives[objectiveIndex].isCompleted = objective.finished;
-        quest.Objectives[objectiveIndex].numFulfilled = objective.numFulfilled;
-        quest.Objectives[objectiveIndex].numRequired = objective.numRequired;
+        QuestieQuest:SetQuestObjectiveProperties(quest, objective, objectiveIndex);
     end
     -- Old select code, is this still needed?
     if old then SelectQuestLogEntry(old); end
     --
     return quest;
+end
+
+function QuestieQuest:SetQuestObjectiveProperties(quest, objective, objectiveIndex)
+    quest.Objectives[objectiveIndex] = {}
+    quest.Objectives[objectiveIndex].description = objective.text;
+    quest.Objectives[objectiveIndex].objectiveType = objective.type;
+    quest.Objectives[objectiveIndex].isCompleted = objective.finished;
+    quest.Objectives[objectiveIndex].numFulfilled = objective.numFulfilled;
+    quest.Objectives[objectiveIndex].numRequired = objective.numRequired;
 end
 
 function QuestieQuest:AcceptQuest(questId)
