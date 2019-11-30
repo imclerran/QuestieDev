@@ -646,9 +646,19 @@ function _QuestieFramePool:Questie_Tooltip()
             end
             for k2, questData in pairs(quests) do
                 if questData.title ~= nil then
-                    local quest = QuestieDB:GetQuest(questData.questId);
-                    if(quest and shift and QuestiePlayer:GetPlayerLevel() ~= 60) then
-                        self:AddDoubleLine("   " .. questData.title, QuestieLib:PrintDifficultyColor(quest.level, "("..GetQuestLogRewardXP(questData.questId)..xpString..") ")..questData.type, 1, 1, 1, 1, 1, 0);
+                    local quest = QuestieDB:GetQuest(questData.questId)
+                    if(quest and shift) then
+                        local rewardString = ""
+                        local rewardXP = GetQuestLogRewardXP(questData.questId)
+                        if rewardXP > 0 then -- Quest rewards XP
+                            rewardString = QuestieLib:PrintDifficultyColor(quest.level, "(".. rewardXP .. xpString .. ") ")
+                        end
+
+                        local moneyReward = GetQuestLogRewardMoney(questData.questId)
+                        if moneyReward > 0 then -- Quest rewards money
+                            rewardString = rewardString .. Questie:Colorize("("..GetCoinTextureString(moneyReward)..") ", "white")
+                        end
+                        self:AddDoubleLine("   " .. questData.title, rewardString .. questData.type, 1, 1, 1, 1, 1, 0);
                     else
                         self:AddDoubleLine("   " .. questData.title, questData.type, 1, 1, 1, 1, 1, 0);
                     end
@@ -656,7 +666,7 @@ function _QuestieFramePool:Questie_Tooltip()
                 if questData.subData and shift then
                     local dataType = type(questData.subData)
                     if dataType == "table" then
-                        for _,line in pairs(questData.subData) do
+                        for _, line in pairs(questData.subData) do
                             self:AddLine("      " .. line, 0.86, 0.86, 0.86);
                         end
                     elseif dataType == "string" then

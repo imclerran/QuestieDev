@@ -160,6 +160,9 @@ function QuestieQuestFixes:Load()
         [680] = {
             [QuestieDB.questKeys.preQuestSingle] = {678}, -- #1062
         },
+        [690] = {
+            [QuestieDB.questKeys.exclusiveTo] = {691}, -- #1587
+        },
         [691] = {
             [QuestieDB.questKeys.preQuestSingle] = {},
         },
@@ -256,6 +259,9 @@ function QuestieQuestFixes:Load()
         },
         [1339] = {
             [QuestieDB.questKeys.exclusiveTo] = {1338}, -- mountaineer stormpike's task cant be done if you have finished stormpike's order
+        },
+        [1418] = {
+            [QuestieDB.questKeys.exclusiveTo] = {1419,1420}, -- #1594
         },
         [1427] = {
             [QuestieDB.questKeys.nextQuestInChain] = 1428,
@@ -390,6 +396,7 @@ function QuestieQuestFixes:Load()
             [QuestieDB.questKeys.requiredRaces] = 77,
         },
         [2501] = {
+            [QuestieDB.questKeys.preQuestSingle] = {}, -- #1541
             [QuestieDB.questKeys.preQuestGroup] = {2500,17}, -- #1541
         },
         [2781] = {
@@ -407,6 +414,9 @@ function QuestieQuestFixes:Load()
         },
         [2922] = {
             [QuestieDB.questKeys.preQuestSingle] = {}, -- Save Techbot's Brain doesn't need the Tinkmaster Overspark breadcrumb #687
+        },
+        [2978] = {
+            [QuestieDB.questKeys.startedBy] = {nil,{143980},{9370,},}, -- #1596
         },
         [2981] = {
             [QuestieDB.questKeys.exclusiveTo] = {2975},
@@ -447,6 +457,15 @@ function QuestieQuestFixes:Load()
         [3483] = {
             [QuestieDB.questKeys.parentQuest] = 3449, -- #1008
             [QuestieDB.questKeys.specialFlags] = 1, -- #1131
+        },
+        [3639] = {
+            [QuestieDB.questKeys.exclusiveTo] = {3643,3641},
+        },
+        [3641] = {
+            [QuestieDB.questKeys.exclusiveTo] = {3639},
+        },
+        [3643] = {
+            [QuestieDB.questKeys.exclusiveTo] = {3639},
         },
         [3681] = {
             [QuestieDB.questKeys.exclusiveTo] = {1642,1646,2997,2998,2999,3000},
@@ -525,6 +544,9 @@ function QuestieQuestFixes:Load()
         -----------------------
         [4122] = {
             [QuestieDB.questKeys.preQuestSingle] = {4082}, -- #1349
+        },
+        [4144] = {
+            [QuestieDB.questKeys.specialFlags] = 1, -- #1590
         },
         [4224] = {
             [QuestieDB.questKeys.triggerEnd] = {"Ragged John's Story",{[46]={{64,23},},},},
@@ -782,6 +804,9 @@ function QuestieQuestFixes:Load()
             [QuestieDB.questKeys.nextQuestInChain] = 7637,
             [QuestieDB.questKeys.exclusiveTo] = {7638,},
             [QuestieDB.questKeys.zoneOrSort] = -141,
+        },
+        [7838] = {
+            [QuestieDB.questKeys.specialFlags] = 1, -- #1589
         },
         [7886] = { -- #1435
             [QuestieDB.questKeys.startedBy] = {{14733},nil,nil},
