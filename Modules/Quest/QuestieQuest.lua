@@ -241,20 +241,7 @@ function QuestieQuest:UpdateHiddenNotes()
         for index, frameName in ipairs(framelist) do -- this may seem a bit expensive, but its actually really fast due to the order things are checked
             local icon = _G[frameName];
             if icon ~= nil and icon.data then
-                if (QuestieQuest.NotesHidden or (((not questieGlobalDB.enableObjectives) and (icon.data.Type == "monster" or icon.data.Type == "object" or icon.data.Type == "event" or icon.data.Type == "item"))
-                 or ((not questieGlobalDB.enableTurnins) and icon.data.Type == "complete")
-                 or ((not questieGlobalDB.enableAvailable) and icon.data.Type == "available"))
-                 or ((not questieGlobalDB.enableMapIcons) and (not icon.miniMapIcon))
-                 or ((not questieGlobalDB.enableMiniMapIcons) and (icon.miniMapIcon))) or (icon.data.ObjectiveData and icon.data.ObjectiveData.HideIcons) or (icon.data.QuestData and icon.data.QuestData.HideIcons and icon.data.Type ~= "complete") then
-                    icon:FakeHide()
-                else
-                    icon:FakeUnhide()
-                end
-                if (icon.data.QuestData.FadeIcons or (icon.data.ObjectiveData and icon.data.ObjectiveData.FadeIcons)) and icon.data.Type ~= "complete" then
-                    icon:FadeOut()
-                else
-                    icon:FadeIn()
-                end
+                QuestieQuest:UpdateQuestNote(icon);
             end
         end
     end
@@ -264,16 +251,39 @@ function QuestieQuest:UpdateHiddenNotes()
         for _, frameName in ipairs(frameList) do
             local icon = _G[frameName]
             if icon ~= nil and icon.data then
-                if  QuestieQuest.NotesHidden or
-                    ((not questieGlobalDB.enableMapIcons) and (not icon.miniMapIcon)) or
-                    ((not questieGlobalDB.enableMiniMapIcons) and (icon.miniMapIcon))
-                then
-                    icon:FakeHide()
-                else
-                    icon:FakeUnhide()
-                end
+                QuestieQuest:UpdateManualNote(icon);
             end
         end
+    end
+end
+
+-- update hidden status of individual quest note icon
+function QuestieQuest:UpdateQuestNote(icon)
+    if (QuestieQuest.NotesHidden or (((not questieGlobalDB.enableObjectives) and (icon.data.Type == "monster" or icon.data.Type == "object" or icon.data.Type == "event" or icon.data.Type == "item"))
+        or ((not questieGlobalDB.enableTurnins) and icon.data.Type == "complete")
+        or ((not questieGlobalDB.enableAvailable) and icon.data.Type == "available"))
+        or ((not questieGlobalDB.enableMapIcons) and (not icon.miniMapIcon))
+        or ((not questieGlobalDB.enableMiniMapIcons) and (icon.miniMapIcon))) or (icon.data.ObjectiveData and icon.data.ObjectiveData.HideIcons) or (icon.data.QuestData and icon.data.QuestData.HideIcons and icon.data.Type ~= "complete") then
+        icon:FakeHide()
+    else
+        icon:FakeUnhide()
+    end
+    if (icon.data.QuestData.FadeIcons or (icon.data.ObjectiveData and icon.data.ObjectiveData.FadeIcons)) and icon.data.Type ~= "complete" then
+        icon:FadeOut()
+    else
+        icon:FadeIn()
+    end
+end
+
+-- update hidden status of individual manual note icon
+function QuestieQuest:UpdateManualNote(icon)
+    if  QuestieQuest.NotesHidden or
+        ((not questieGlobalDB.enableMapIcons) and (not icon.miniMapIcon)) or
+        ((not questieGlobalDB.enableMiniMapIcons) and (icon.miniMapIcon))
+    then
+        icon:FakeHide()
+    else
+        icon:FakeUnhide()
     end
 end
 
