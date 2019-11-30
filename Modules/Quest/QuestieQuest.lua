@@ -30,7 +30,6 @@ local _QuestieQuest = QuestieQuest.private
 local libS = LibStub:GetLibrary("AceSerializer-3.0")
 local libC = LibStub:GetLibrary("LibCompress")
 
-
 --We should really try and squeeze out all the performance we can, especially in this.
 local tostring = tostring;
 local tinsert = table.insert;
@@ -685,26 +684,14 @@ end
 
 function QuestieQuest:PopulateObjective(Quest, ObjectiveIndex, Objective, BlockItemTooltips) -- must be pcalled
     Questie:Debug(DEBUG_SPAM, "[QuestieQuest:PopulateObjective]")
-    if not Objective.AlreadySpawned then
-        Objective.AlreadySpawned = {};
-    end
 
     -- temporary fix for "special objectives" to not double-spawn (we need to fix the objective detection logic)
-    if not Quest.AlreadySpawned then
-        Quest.AlreadySpawned = {};
-    end
+    _QuestieQuest:InitAlreadySpawned(Objective);
+    _QuestieQuest:InitAlreadySpawned(Quest);
+    _QuestieQuest:InitObjectiveSpawnlist(Objective)
 
-    if _QuestieQuest.objectiveSpawnListCallTable[Objective.Type] and (not Objective.spawnList) then
-        Objective.spawnList = _QuestieQuest.objectiveSpawnListCallTable[Objective.Type](Objective.Id, Objective);
-    end
-
-    local maxPerType = 300
-    if Questie.db.global.enableIconLimit then
-        maxPerType = Questie.db.global.iconLimit
-    end
-
+    local maxPerType = QuestieQuest:GetMaxPerType()
     local closestStarter = QuestieMap:FindClosestStarter()
-
     local iconsToDraw = {}
 
     Objective:Update() -- update qlog data
@@ -715,13 +702,8 @@ function QuestieQuest:PopulateObjective(Quest, ObjectiveIndex, Objective, BlockI
         Objective.Color = {0.45 + QuestieLib:MathRandom() / 2, 0.45 + QuestieLib:MathRandom() / 2, 0.45 + QuestieLib:MathRandom() / 2}
     end
 
-    if (not Objective.registeredItemTooltips) and Objective.Type == "item" and (not BlockItemTooltips) and Objective.Id then -- register item tooltip (special case)
-        local item = QuestieDB:GetItem(Objective.Id);
-        if item and item.name then
-            QuestieTooltips:RegisterTooltip(Quest.Id, "i_" .. item.Id, Objective);
-        end
-        Objective.registeredItemTooltips = true
-    end
+    _QuestieQuest:RegisterItemTooltips(Objective, BlockItemTooltips, Quest)
+
     if Objective.spawnList then
         local hasSpawnHack = false -- used to check if we have bad data due to API delay. Remove this check once the API bug is dealt with properly
         local hasTooltipHack = false
@@ -742,119 +724,12 @@ function QuestieQuest:PopulateObjective(Quest, ObjectiveIndex, Objective, BlockI
                 end
             end
             if (not Objective.AlreadySpawned[id]) and (not completed) and (not Quest.AlreadySpawned[Objective.Type .. tostring(ObjectiveIndex)][spawnData.Id]) then
-                if Questie.db.global.enableObjectives then
-                    -- temporary fix for "special objectives" to not double-spawn (we need to fix the objective detection logic)
-                    Quest.AlreadySpawned[Objective.Type .. tostring(ObjectiveIndex)][spawnData.Id] = true
-                    local maxCount = 0
-                    if(not iconsToDraw[Quest.Id]) then
-                        iconsToDraw[Quest.Id] = {}
-                    end
-                    local data = {}
-                    data.Id = Quest.Id
-                    data.ObjectiveIndex = ObjectiveIndex
-                    data.QuestData = Quest
-                    data.ObjectiveData = Objective
-                    data.Icon = spawnData.Icon
-                    data.IconColor = Quest.Color
-                    data.GetIconScale = function() return spawnData:GetIconScale() or 1 end
-                    data.IconScale = data:GetIconScale()
-                    data.Name = spawnData.Name
-                    data.Type = Objective.Type
-                    data.ObjectiveTargetId = spawnData.Id
-
-                    Objective.AlreadySpawned[id] = {};
-                    Objective.AlreadySpawned[id].data = data;
-                    Objective.AlreadySpawned[id].minimapRefs = {};
-                    Objective.AlreadySpawned[id].mapRefs = {};
-
-                    for zone, spawns in pairs(spawnData.Spawns) do
-                        for _, spawn in pairs(spawns) do
-                            if(spawn[1] and spawn[2]) then
-                                local drawIcon = {};
-                                drawIcon.AlreadySpawnedId = id;
-                                drawIcon.data = data;
-                                drawIcon.zone = zone;
-                                drawIcon.areaId = zone;
-                                drawIcon.UIMapId = ZoneDataAreaIDToUiMapID[zone];
-                                drawIcon.x = spawn[1];
-                                drawIcon.y = spawn[2];
-                                local x, y, instance = HBD:GetWorldCoordinatesFromZone(drawIcon.x/100, drawIcon.y/100, ZoneDataAreaIDToUiMapID[zone])
-                                -- There are instances when X and Y are not in the same map such as in dungeons etc, we default to 0 if it is not set
-                                -- This will create a distance of 0 but it doesn't matter.
-                                local distance = QuestieLib:Euclid(closestStarter[Quest.Id].x or 0, closestStarter[Quest.Id].y or 0, x or 0, y or 0);
-                                drawIcon.distance = distance or 0;
-                                iconsToDraw[Quest.Id][floor(distance)] = drawIcon;
-                            end
-                            --maxCount = maxCount + 1
-                            --if maxPerType > 0 and maxCount > maxPerType then break; end
-                        end
-                        --if maxPerType > 0 and maxCount > maxPerType then break; end
-                    end
-                end
+                _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, spawnData, iconsToDraw)
             elseif completed and Objective.AlreadySpawned then -- unregister notes
-                for id, spawn in pairs(Objective.AlreadySpawned) do
-                    for _, note in pairs(spawn.mapRefs) do
-                        note:Unload();
-                    end
-                    for _, note in pairs(spawn.minimapRefs) do
-                        note:Unload();
-                    end
-                    spawn.mapRefs = {}
-                    spawn.minimapRefs = {}
-                end
+                _QuestieQuest:DespawnCompleted(Objective)
             end
         end
-        local spawnedIcons = {}
-        for questId, icons in pairs(iconsToDraw) do
-            if(not spawnedIcons[questId]) then
-                spawnedIcons[questId] = 0;
-            end
-
-            --This can be used to make distance ordered list..
-            local iconCount = 0;
-            local orderedList = {}
-            local tkeys = {}
-            -- populate the table that holds the keys
-            for k in pairs(icons) do tinsert(tkeys, k) end
-            -- sort the keys
-            table.sort(tkeys)
-            -- use the keys to retrieve the values in the sorted order
-            for _, distance in ipairs(tkeys) do
-                if(spawnedIcons[questId] > maxPerType) then
-                    Questie:Debug(DEBUG_DEVELOP, "[QuestieQuest]", "Too many icons for quest:", questId)
-                    break;
-                end
-                iconCount = iconCount + 1;
-                tinsert(orderedList, icons[distance]);
-            end
-            local range = QUESTIE_CLUSTER_DISTANCE
-            if orderedList and orderedList[1] and orderedList[1].Icon == ICON_TYPE_OBJECT then -- new clustering / limit code should prevent problems, always show all object notes
-                range = range * 0.2;  -- Only use 20% of the default range.
-            end
-
-            local hotzones = QuestieMap.utils:CalcHotzones(orderedList, range, iconCount);
-
-            for index, hotzone in pairs(hotzones or {}) do
-                if(spawnedIcons[questId] > maxPerType) then
-                    Questie:Debug(DEBUG_DEVELOP, "[QuestieQuest]", "Too many icons for quest:", questId)
-                    break;
-                end
-
-                --Any icondata will do because they are all the same
-                local icon = hotzone[1];
-
-
-                local midPoint = QuestieMap.utils:CenterPoint(hotzone);
-                --Disable old clustering.
-                icon.data.ClusterId = nil;
-                local iconMap, iconMini = QuestieMap:DrawWorldIcon(icon.data, icon.zone, midPoint.x, midPoint.y) -- clustering code takes care of duplicates as long as mindist is more than 0
-                if iconMap and iconMini then
-                    tinsert(Objective.AlreadySpawned[icon.AlreadySpawnedId].mapRefs, iconMap);
-                    tinsert(Objective.AlreadySpawned[icon.AlreadySpawnedId].minimapRefs, iconMini);
-                end
-                spawnedIcons[questId] = spawnedIcons[questId] + 1;
-            end
-        end
+        _QuestieQuest:SpawnObjectiveIcons(iconsToDraw, Objective, maxPerType)
         if not hasSpawnHack then-- used to check if we have bad data due to API delay. Remove this check once the API bug is dealt with properly
             Objective.spawnList = nil -- reset the list so it can be regenerated with hopefully better quest log data
         end
