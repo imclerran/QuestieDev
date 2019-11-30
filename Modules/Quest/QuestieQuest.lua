@@ -593,6 +593,7 @@ function QuestieQuest:AddFinisher(quest)
     end
 end
 
+-- update waypoints for finishers in the current zone
 function QuestieQuest:UpdateWaypointsThisZone(finisher, finisherZone, coords)
     --QuestieMap:DrawWorldIcon(data, Zone, coords[1], coords[2])
     local x = coords[1];
@@ -612,12 +613,12 @@ function QuestieQuest:UpdateWaypointsThisZone(finisher, finisherZone, coords)
     end
 
     local icon, _ = QuestieMap:DrawWorldIcon(data, finisherZone, x, y)
-
     if(finisher.waypoints and finisher.waypoints[finisherZone]) then
         QuestieMap:DrawWaypoints(icon, finisher.waypoints[finisherZone], finisherZone, x, y)
     end
 end
 
+-- update waypoints for finishers in another zone
 function QuestieQuest:UpdateWaypointsOtherZone(finisher, finisherZone)
     if(InstanceLocations[finisherZone] ~= nil) then
         for _, value in ipairs(InstanceLocations[finisherZone]) do
