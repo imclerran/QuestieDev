@@ -240,7 +240,7 @@ function QuestieQuest:UpdateHiddenNotes()
         for index, frameName in ipairs(framelist) do -- this may seem a bit expensive, but its actually really fast due to the order things are checked
             local icon = _G[frameName];
             if icon ~= nil and icon.data then
-                QuestieQuest:UpdateQuestNote(icon);
+                _QuestieQuest:UpdateQuestNote(icon, questieGlobalDB);
             end
         end
     end
@@ -250,14 +250,14 @@ function QuestieQuest:UpdateHiddenNotes()
         for _, frameName in ipairs(frameList) do
             local icon = _G[frameName]
             if icon ~= nil and icon.data then
-                QuestieQuest:UpdateManualNote(icon);
+                _QuestieQuest:UpdateManualNote(icon, QuestieGlobalDB);
             end
         end
     end
 end
 
 -- update hidden status of individual quest note icon
-function QuestieQuest:UpdateQuestNote(icon)
+function _QuestieQuest:UpdateQuestNote(icon, questieGlobalDB)
     if (QuestieQuest.NotesHidden or (((not questieGlobalDB.enableObjectives) and (icon.data.Type == "monster" or icon.data.Type == "object" or icon.data.Type == "event" or icon.data.Type == "item"))
         or ((not questieGlobalDB.enableTurnins) and icon.data.Type == "complete")
         or ((not questieGlobalDB.enableAvailable) and icon.data.Type == "available"))
@@ -275,7 +275,7 @@ function QuestieQuest:UpdateQuestNote(icon)
 end
 
 -- update hidden status of individual manual note icon
-function QuestieQuest:UpdateManualNote(icon)
+function _QuestieQuest:UpdateManualNote(icon, questieGlobalDB)
     if  QuestieQuest.NotesHidden or
         ((not questieGlobalDB.enableMapIcons) and (not icon.miniMapIcon)) or
         ((not questieGlobalDB.enableMiniMapIcons) and (icon.miniMapIcon))
@@ -592,9 +592,6 @@ function QuestieQuest:AddFinisher(quest)
     end
 end
 
-
-
-
 -- this is for forcing specific things on to the map (That aren't quest related)
 -- label and customScale can be nil
 function QuestieQuest:ForceToMap(type, id, label, customScale)
@@ -635,8 +632,7 @@ function QuestieQuest:PopulateObjective(Quest, ObjectiveIndex, Objective, BlockI
     _QuestieQuest:InitAlreadySpawned(Quest);
     _QuestieQuest:InitObjectiveSpawnlist(Objective)
 
-    local maxPerType = QuestieQuest:GetMaxPerType()
-    local closestStarter = QuestieMap:FindClosestStarter()
+    local maxPerType = _QuestieQuest:GetMaxPerType()
     local iconsToDraw = {}
 
     Objective:Update() -- update qlog data
@@ -669,12 +665,13 @@ function QuestieQuest:PopulateObjective(Quest, ObjectiveIndex, Objective, BlockI
                 end
             end
             if (not Objective.AlreadySpawned[id]) and (not completed) and (not Quest.AlreadySpawned[Objective.Type .. tostring(ObjectiveIndex)][spawnData.Id]) then
-                _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, spawnData, iconsToDraw)
+                _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, id, spawnData, iconsToDraw)
             elseif completed and Objective.AlreadySpawned then -- unregister notes
                 _QuestieQuest:DespawnCompleted(Objective)
             end
         end
         _QuestieQuest:SpawnObjectiveIcons(iconsToDraw, Objective, maxPerType)
+
         if not hasSpawnHack then-- used to check if we have bad data due to API delay. Remove this check once the API bug is dealt with properly
             Objective.spawnList = nil -- reset the list so it can be regenerated with hopefully better quest log data
         end

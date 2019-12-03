@@ -10,7 +10,12 @@ local QuestieDBZone = QuestieLoader:ImportModule("QuestieDBZone")
 local QuestiePlayer = QuestieLoader:ImportModule("QuestiePlayer")
 ---@type QuestieToolTips
 local QuestieTooltips = QuestieLoader:ImportModule("QuestieTooltips")
+---@type QuestieMap
+local QuestieMap = QuestieLoader:ImportModule("QuestieMap");
+---@type QuestieLib
+local QuestieLib = QuestieLoader:ImportModule("QuestieLib");
 
+local HBD = LibStub("HereBeDragonsQuestie-2.0")
 
 _QuestieQuest.objectiveSpawnListCallTable = {
     ["monster"] = function(id, Objective)
@@ -180,7 +185,8 @@ function _QuestieQuest:RegisterItemTooltips(Objective, BlockItemTooltips, Quest)
 end
 
 -- Generate the list of icons to draw, using spawnData
-function _QuestieQuest:UpdateIconsToDraw(iconsToDraw, Quest, spawnData, data)
+function _QuestieQuest:UpdateIconsToDraw(iconsToDraw, Quest, id, spawnData, data)
+    local closestStarter = QuestieMap:FindClosestStarter()
     for zone, spawns in pairs(spawnData.Spawns) do
         for _, spawn in pairs(spawns) do
             if(spawn[1] and spawn[2]) then
@@ -224,7 +230,7 @@ function _QuestieQuest:BuildData(Quest, ObjectiveIndex, Objective, spawnData)
 end
 
 -- set the Objective.AlreadySpawned properties for a given objective spawn, and update the icons to draw
-function _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, spawnData, iconsToDraw)
+function _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, id, spawnData, iconsToDraw)
     if Questie.db.global.enableObjectives then
         -- temporary fix for "special objectives" to not double-spawn (we need to fix the objective detection logic)
         Quest.AlreadySpawned[Objective.Type .. tostring(ObjectiveIndex)][spawnData.Id] = true
@@ -239,7 +245,7 @@ function _QuestieQuest:SpawnObjective(Quest, Objective, ObjectiveIndex, spawnDat
         Objective.AlreadySpawned[id].minimapRefs = {};
         Objective.AlreadySpawned[id].mapRefs = {};
 
-        _QuestieQuest:UpdateIconsToDraw(iconsToDraw, Quest, spawnData, data);
+        _QuestieQuest:UpdateIconsToDraw(iconsToDraw, Quest, id, spawnData, data);
     end
 end
 
@@ -287,6 +293,7 @@ function _QuestieQuest:SpawnIconByHotzone(hotzones, spawnedIcons, Objective, que
         icon.data.ClusterId = nil;
         local iconMap, iconMini = QuestieMap:DrawWorldIcon(icon.data, icon.zone, midPoint.x, midPoint.y) -- clustering code takes care of duplicates as long as mindist is more than 0
         if iconMap and iconMini then
+            --print(Questie:Colorize(icon, 'yellow'));
             tinsert(Objective.AlreadySpawned[icon.AlreadySpawnedId].mapRefs, iconMap);
             tinsert(Objective.AlreadySpawned[icon.AlreadySpawnedId].minimapRefs, iconMini);
         end
