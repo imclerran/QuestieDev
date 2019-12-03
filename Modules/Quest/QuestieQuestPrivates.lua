@@ -315,3 +315,60 @@ function _QuestieQuest:SpawnObjectiveIcons(iconsToDraw, Objective, maxPerType)
         _QuestieQuest:SpawnIconByHotzone(hotzones, spawnedIcons, Objective, questId, maxPerType)
     end
 end
+
+-- update waypoints for finishers in the current zone
+function _QuestieQuest:UpdateWaypointsThisZone(data, finisher, finisherZone, coords)
+    --QuestieMap:DrawWorldIcon(data, Zone, coords[1], coords[2])
+    local x = coords[1];
+    local y = coords[2];
+
+    -- Calculate mid point if waypoints exist, we need to do this before drawing the lines
+    -- as we need the icon handle for the lines.
+    if(finisher.waypoints and finisher.waypoints[finisherZone]) then
+        local midX, midY = QuestieLib:CalculateWaypointMidPoint(finisher.waypoints[finisherZone]);
+        x = midX or x;
+        y = midY or y;
+        -- The above code should do the same... remove this after testing it.
+        --if(midX and midY) then
+        --    x = midX;
+        --    y = midY;
+        --end
+    end
+
+    local icon, _ = QuestieMap:DrawWorldIcon(data, finisherZone, x, y)
+    if(finisher.waypoints and finisher.waypoints[finisherZone]) then
+        QuestieMap:DrawWaypoints(icon, finisher.waypoints[finisherZone], finisherZone, x, y)
+    end
+end
+
+-- update waypoints for finishers in another zone
+function _QuestieQuest:UpdateWaypointsOtherZone(data, finisher, finisherZone)
+    if(InstanceLocations[finisherZone] ~= nil) then
+        for _, value in ipairs(InstanceLocations[finisherZone]) do
+            --QuestieMap:DrawWorldIcon(data, value[1], value[2], value[3])
+            --Questie:Debug(DEBUG_SPAM, "Conv:", Zone, "To:", ZoneDataAreaIDToUiMapID[value[1]])
+            --local icon, minimapIcon = QuestieMap:DrawWorldIcon(data, value[1], value[2], value[3])
+            local zone = value[1];
+            local x = value[2];
+            local y = value[3];
+            -- Calculate mid point if waypoints exist, we need to do this before drawing the lines
+            -- as we need the icon handle for the lines.
+            if(finisher.waypoints and finisher.waypoints[zone]) then
+                local midX, midY = QuestieLib:CalculateWaypointMidPoint(finisher.waypoints[zone]);
+                x = midX or x;
+                y = midY or y;
+                -- The above code should do the same... remove this after testing it.
+                --if(midX and midY) then
+                --    x = midX;
+                --    y = midY;
+                --end
+            end
+
+            local icon, _ = QuestieMap:DrawWorldIcon(data, zone, x, y)
+
+            if(finisher.waypoints and finisher.waypoints[zone]) then
+                QuestieMap:DrawWaypoints(icon, finisher.waypoints[zone], zone, x, y)
+            end
+        end
+    end
+end
